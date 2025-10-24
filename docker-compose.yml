@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: inventory-postgres
+    environment:
+      POSTGRES_DB: Inventory
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Alpha@8290
+    ports:
+      - "5432:5432"
+    networks:
+      - inventory-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: inventory-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - inventory-network
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+
+  app:
+    image: inventory-app:latest
+    container_name: inventory-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://inventory-postgres:5432/Inventory
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: Alpha@8290
+      SPRING_DATASOURCE_DRIVER-CLASS-NAME: org.postgresql.Driver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_DATA_REDIS_HOST: inventory-redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_SSL_ENABLED: false
+    ports:
+      - "8080:8080"
+    networks:
+      - inventory-network
+    restart: unless-stopped
+
+networks:
+  inventory-network:
+    driver: bridge
