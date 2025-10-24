@@ -13,7 +13,6 @@ permissions:
   actions: read
   security-events: write
   id-token: write
-  dependencies: write
 
 on:
   push:
